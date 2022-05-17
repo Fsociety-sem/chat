@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  redis:
+    image: redis:6-alpine
+    ports:
+      - 6379:6379
+  database:
+    image: postgres:14-alpine
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=123456
+    volumes: 
+      - db:/var/lib/postgresql/data
+  app:
+    build: .
+    depends_on:
+      - redis
+      - database
+    links:
+      - redis
+      - database
+    command: sh -c "npm run migrate:prod && npm run start:prod"
+    ports:
+      - 8080:8080
+volumes:
+  db:
+    driver: local
+    
+    
