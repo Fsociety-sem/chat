@@ -1,18 +1,13 @@
 import {
-  CACHE_MANAGER,
   ConflictException,
-  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
 import { User as PrismaUser, Role } from '@prisma/client'
-import { Cache } from 'cache-manager'
 
 import { SignDto } from 'src/auth/dto/sign.dto'
 import { PrismaService } from 'src/prisma.service'
-import { TokenService } from 'src/token/token.service'
 import { UserResponseDto } from '../auth/dto/response.dto'
-import { UserStatus } from './status.enum'
 import { User } from './types/user.type'
 
 @Injectable()
@@ -23,11 +18,7 @@ export class UserService {
     roles: true,
   }
 
-  constructor(
-    private readonly prismaService: PrismaService,
-    private readonly tokenService: TokenService,
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
-  ) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
   public async create(userDto: SignDto): Promise<User> {
     const user = await this.prismaService.user.findUnique({
@@ -65,15 +56,5 @@ export class UserService {
     return this.prismaService.user.findMany({
       select: this.userSelect,
     })
-  }
-
-  public async changeUserStatus(userId: number, status: UserStatus) {
-    await this.cacheManager.set(`${userId}.status`, status, {
-      ttl: 7200,
-    })
-  }
-
-  public async getUserStatus(userId: number): Promise<UserStatus> {
-    return this.cacheManager.get(`${userId}.status`)
   }
 }

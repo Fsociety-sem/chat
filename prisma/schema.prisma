@@ -8,25 +8,39 @@ datasource db {
 }
 
 model User {
-  id                Int       @id @default(autoincrement())
-  name              String    @unique
-  password          String
-  userFriends       Friend[] @relation("users")
-  friendUserFriends Friend[] @relation("friend_users")
-  roles             Role[]
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  password String
+  roles    Role[]
+
+  userFriends       Friend[]  @relation("users")
+  friendUserFriends Friend[]  @relation("friend_users")
+  sentMessage       Message[] @relation("sent_message")
+  receivedMessage   Message[] @relation("received_message")
 
   @@map("users")
 }
 
 model Friend {
-  id        String   @id @default(uuid())
-  userId    Int      @unique
-  friendId  Int      @unique
-  user      User     @relation("users", fields: [userId], references: [id])
-  friend    User     @relation("friend_users", fields: [friendId], references: [id])
-  status    FriendStatus
+  id       String       @id @default(uuid())
+  userId   Int          @unique
+  friendId Int          @unique
+  user     User         @relation("users", fields: [userId], references: [id])
+  friend   User         @relation("friend_users", fields: [friendId], references: [id])
+  status   FriendStatus
 
   @@map("friends")
+}
+
+model Message {
+  id       String @id @default(uuid())
+  userId   Int
+  friendId Int
+  user     User   @relation("sent_message", fields: [userId], references: [id])
+  friend   User   @relation("received_message", fields: [friendId], references: [id])
+  text     String
+
+  @@map("messages")
 }
 
 enum Role {

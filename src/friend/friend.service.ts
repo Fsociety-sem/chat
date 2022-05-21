@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  CACHE_MANAGER,
   ConflictException,
   ForbiddenException,
+  Inject,
   Injectable,
 } from '@nestjs/common'
 import { Friend, FriendStatus } from '@prisma/client'
+import { Cache } from 'cache-manager'
 
 import { PrismaService } from 'src/prisma.service'
 import { UserService } from 'src/user/user.service'
@@ -15,6 +18,7 @@ export class FriendService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly userSerice: UserService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   public async requestFriendship(
@@ -80,8 +84,8 @@ export class FriendService {
         const { status, ...restItem } = item
         if (status === FriendStatus.FRIEND) {
           const { friendId } = restItem
-          const lineStatus = await this.userSerice.getUserStatus(
-            userId === restItem.userId ? friendId : friendId,
+          const lineStatus = await this.cacheManager.get(
+            `${userId === restItem.userId ? friendId : friendId}.status`,
           )
           ;(await acc).friends.push({ ...restItem, friendStatus: lineStatus })
         } else if (

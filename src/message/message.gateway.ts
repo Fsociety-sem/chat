@@ -34,8 +34,9 @@ export class MessageGateway
     @MessageBody() { friendId, text }: MessageDto,
     @GetUserId() userId: number,
   ): Promise<MessageDto> {
+    const socketId = await this.messageService.getSocketIdByUserId(friendId)
+    if (!socketId) return
     const message = await this.messageService.send(userId, friendId, text)
-    const socketId = this.messageService.getSocketIdByUserId(friendId)
     this.server.to(socketId).emit('message', message)
 
     return message

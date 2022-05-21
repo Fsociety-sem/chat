@@ -1,19 +1,31 @@
-import { Injectable } from '@nestjs/common'
+import { CACHE_MANAGER, Inject, Injectable } from '@nestjs/common'
+import { Cache } from 'cache-manager'
 
+import { PrismaService } from 'src/prisma.service'
 import { TokenService } from 'src/token/token.service'
 import { UserStatus } from 'src/user/status.enum'
-import { UserService } from 'src/user/user.service'
 import { MessageDto } from './dto/message.dto'
-import { IUserSocket } from './interfaces/user-socket.interfaces'
+import { PrismaMessage } from './types/prisma-message'
 
 @Injectable()
 export class MessageService {
-  private readonly messages: MessageDto[] = []
-  private readonly userIdSocket: IUserSocket[] = []
+  private messageInclude = {
+    user: {
+      select: {
+        name: true,
+      },
+    },
+    friend: {
+      select: {
+        name: true,
+      },
+    },
+  }
 
   constructor(
     private readonly tokenService: TokenService,
-    private readonly userService: UserService,
+    private readonly prismaService: PrismaService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   public async send(
@@ -21,47 +33,77 @@ export class MessageService {
     friendId: number,
     text: string,
   ): Promise<MessageDto> {
-    const { name } = await this.userService.findUserById(userId)
-    const friend = await this.userService.findUserById(friendId)
-    const message: MessageDto = {
+    const message = {
       userId,
-      userName: name,
-      friendName: friend.name,
       friendId,
       text,
     }
-    this.messages.push(message)
-    return message
+    const newMessage = await this.prismaService.message.create({
+      data: message,
+      include: this.messageInclude,
+    })
+    return this.prepareMessageDto(newMessage)
   }
 
   public async findAll(
     userId: number,
     friendId: number,
   ): Promise<MessageDto[]> {
-    return this.messages.filter(
-      (item) =>
-        JSON.stringify([item.userId, item.friendId].sort()) ===
-        JSON.stringify([userId, friendId].sort()),
-    )
+    const messages = await this.prismaService.message.findMany({
+      where: {
+        OR: [
+          {
+            userId,
+            friendId,
+          },
+          {
+            userId: friendId,
+            friendId: userId,
+          },
+        ],
+      },
+      include: this.messageInclude,
+    })
+    return messages.map(this.prepareMessageDto)
   }
 
-  public getSocketIdByUserId(userId: number): string {
-    return this.userIdSocket.find((item) => item.userId === userId).socketId
+  public getSocketIdByUserId(userId: number): Promise<string> {
+    return this.cacheManager.get(`${userId}.socket`)
   }
 
   public async handleConnection(
     token: string,
     socketId: string,
   ): Promise<void> {
-    const userId = await this.tokenService.verifyAccessToken(token)
-    this.userIdSocket.push({
-      userId,
-      socketId,
-    })
-    await this.userService.changeUserStatus(userId, UserStatus.OFLINE)
+    try {
+      const userId = await this.tokenService.verifyAccessToken(token)
+      await this.cacheManager.set(`${userId}.socket`, socketId, {
+        ttl: 7200,
+      })
+      await this.changeUserStatus(userId, UserStatus.OFLINE)
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   public handleDisconnect(userId: number): Promise<void> {
-    return this.userService.changeUserStatus(userId, UserStatus.OFLINE)
+    return this.changeUserStatus(userId, UserStatus.OFLINE)
+  }
+
+  private async changeUserStatus(userId: number, status: UserStatus) {
+    await this.cacheManager.set(`${userId}.status`, status, {
+      ttl: 7200,
+    })
+  }
+
+  private prepareMessageDto(message: PrismaMessage): MessageDto {
+    const { userId, user, friend, friendId, text } = message
+    return {
+      userId,
+      userName: user.name,
+      friendName: friend.name,
+      friendId,
+      text,
+    }
   }
 }
