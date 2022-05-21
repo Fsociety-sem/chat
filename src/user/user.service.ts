@@ -67,8 +67,7 @@ export class UserService {
     })
   }
 
-  public async changeUserStatus(token: string, status: UserStatus) {
-    const userId = await this.tokenService.verifyAccessToken(token)
+  public async changeUserStatus(userId: number, status: UserStatus) {
     await this.cacheManager.set(`${userId}.status`, status, {
       ttl: 7200,
     })

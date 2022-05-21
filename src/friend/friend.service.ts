@@ -7,23 +7,20 @@ import {
 import { Friend, FriendStatus } from '@prisma/client'
 
 import { PrismaService } from 'src/prisma.service'
-import { TokenService } from 'src/token/token.service'
 import { UserService } from 'src/user/user.service'
 import { AllRequestsResponseDto } from './dto/all-requests-response.dto'
 
 @Injectable()
 export class FriendService {
   constructor(
-    private readonly tokenService: TokenService,
     private readonly prismaService: PrismaService,
     private readonly userSerice: UserService,
   ) {}
 
   public async requestFriendship(
-    accessToken: string,
+    userId: number,
     friendId: number,
   ): Promise<Friend> {
-    const userId = await this.tokenService.verifyAccessToken(accessToken)
     if (userId === friendId)
       throw new BadRequestException('You cannot add yourself as friend')
     const request = await this.prismaService.friend.findMany({
@@ -52,10 +49,7 @@ export class FriendService {
     })
   }
 
-  public async getRequests(
-    accessToken: string,
-  ): Promise<AllRequestsResponseDto> {
-    const userId = await this.tokenService.verifyAccessToken(accessToken)
+  public async getRequests(userId: number): Promise<AllRequestsResponseDto> {
     const requests = await this.prismaService.friend.findMany({
       where: {
         OR: [
@@ -109,8 +103,7 @@ export class FriendService {
     return data
   }
 
-  public async acceptRequest(accessToken: string, id: string): Promise<void> {
-    const userId = await this.tokenService.verifyAccessToken(accessToken)
+  public async acceptRequest(userId: number, id: string): Promise<void> {
     const { friendId } = await this.prismaService.friend.findUnique({
       where: { id },
       select: {
@@ -128,8 +121,7 @@ export class FriendService {
     })
   }
 
-  public async deleteFriend(accessToken: string, id: string): Promise<void> {
-    const userId = await this.tokenService.verifyAccessToken(accessToken)
+  public async deleteFriend(userId: number, id: string): Promise<void> {
     const request = await this.prismaService.friend.findMany({
       where: {
         id,

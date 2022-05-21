@@ -22,6 +22,7 @@ import {
 } from '@nestjs/swagger'
 
 import { AuthGuard } from 'src/auth/guards/auth.guard'
+import { GetUserId } from 'src/decorators/user-id.decorator'
 import { AllRequestsResponseDto } from './dto/all-requests-response.dto'
 import { RequestDto } from './dto/request-response.dto'
 import { FriendService } from './friend.service'
@@ -53,9 +54,9 @@ export class FriendController {
   })
   private requestFriendship(
     @Param('id') id: string,
-    @Headers('access_token') accessToken: string,
+    @GetUserId() userId: number,
   ): Promise<RequestDto> {
-    return this.friendService.requestFriendship(accessToken, +id)
+    return this.friendService.requestFriendship(userId, +id)
   }
 
   @Get('request')
@@ -67,9 +68,9 @@ export class FriendController {
     description: 'Invalid token',
   })
   private getRequests(
-    @Headers('access_token') accessToken: string,
+    @GetUserId() userId: number,
   ): Promise<AllRequestsResponseDto> {
-    return this.friendService.getRequests(accessToken)
+    return this.friendService.getRequests(userId)
   }
 
   @Patch('accept/:id')
@@ -86,9 +87,9 @@ export class FriendController {
   @ApiForbiddenResponse()
   private acceptRequest(
     @Param('id') id: string,
-    @Headers('access_token') accessToken: string,
+    @GetUserId() userId: number,
   ): Promise<void> {
-    return this.friendService.acceptRequest(accessToken, id)
+    return this.friendService.acceptRequest(userId, id)
   }
 
   @Delete(':id')
@@ -100,8 +101,8 @@ export class FriendController {
   @ApiForbiddenResponse()
   private deleteFriend(
     @Param('id') id: string,
-    @Headers('access_token') accessToken: string,
+    @GetUserId() userId: number,
   ): Promise<void> {
-    return this.friendService.deleteFriend(accessToken, id)
+    return this.friendService.deleteFriend(userId, id)
   }
 }
